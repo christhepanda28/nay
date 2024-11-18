@@ -53,7 +53,6 @@ nay
 When a package is found, you can:
 - Install it permanently (adds to `configuration.nix` and rebuilds)
 - Try it in a temporary shell
-- Browse other options if it's not what you wanted
 
 ## Dependencies
 
