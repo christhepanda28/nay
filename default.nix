@@ -8,9 +8,6 @@ let
   pname = "nay";
   version = "0.1.0";
   
-  python = python3.withPackages (ps: with ps; [
-    # Add any additional Python dependencies here if needed
-  ]);
 
   script = writeScriptBin pname ''
     #!${python}/bin/python3

@@ -36,6 +36,7 @@ def parse_search_results(output: str) -> List[Tuple[str, str, str]]:
             # Parse new package line
             # Extract name and version, cleaning any ANSI codes
             match = re.match(r'^([^\s]+)\s*\(([^)]+)\)', line)
+
             if match:
                 package_name = strip_ansi_codes(match.group(1)).strip()
                 version = strip_ansi_codes(match.group(2)).strip()
