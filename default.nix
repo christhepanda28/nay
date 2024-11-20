@@ -10,7 +10,7 @@ let
   
 
   script = writeScriptBin pname ''
-    #!${python}/bin/python3
+    #!${python3}/bin/python3
     import os
     # Ensure nh is in PATH
     os.environ["PATH"] = "${nh}/bin:" + os.environ["PATH"]
