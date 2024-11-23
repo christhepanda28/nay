@@ -7,8 +7,9 @@ An interactive NixOS package installer inspired by Arch Linux's `yay`. Nay helps
 - Interactive package search and selection
 - Exact match detection
 - Try packages in a temporary shell before installing
-- Automatic `configuration.nix` updates
+- Automatic configuration file updates
 - System rebuild automation
+- Configurable configuration file path
 
 ## Installation
 
@@ -26,17 +27,26 @@ Add nay to your NixOS configuration using Flakes:
       # ...
       modules = [
         # ...
-                ({pkgs, ...}: {
-          environment.systemPackages = [
-            nay.packages.x86_64-linux.nay
-          ];
-        })
-
+        nay.nixosModules.default
+        {
+          programs.nay = {
+            enable = true;
+            # Optional: specify a custom configuration file path
+            # configPath = "/path/to/your/configuration.nix";
+          };
+        }
       ];
     };
   };
 }
 ```
+
+## Configuration
+
+Nay can be configured through NixOS module options:
+
+- `programs.nay.enable`: Enable/disable nay (boolean)
+- `programs.nay.configPath`: Path to your NixOS configuration file containing `environment.systemPackages` (default: "/etc/nixos/configuration.nix")
 
 ## Usage
 
@@ -51,7 +61,7 @@ nay
 ```
 
 When a package is found, you can:
-- Install it permanently (adds to `configuration.nix` and rebuilds)
+- Install it permanently (adds to your configuration file and rebuilds)
 - Try it in a temporary shell
 
 ## Dependencies

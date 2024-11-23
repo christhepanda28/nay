@@ -12,7 +12,7 @@
         pkgs = nixpkgs.legacyPackages.${system};
 
         nay = pkgs.callPackage ./default.nix {
-          nh = pkgs.nh;  # Add nh as a dependency
+          nh = pkgs.nh;
         };
       in
       {
@@ -29,16 +29,32 @@
         };
 
         devShells.default = pkgs.mkShell {
-          buildInputs = [ nay pkgs.nh ];  # Add nh to development shell too
+          buildInputs = [ nay pkgs.nh ];
         };
       }) // {
         # NixOS module
-        nixosModules.default = { pkgs, ... }: {
-          nixpkgs.overlays = [
-            (final: prev: {
-              nay = self.packages.${prev.system}.default;
-            })
-          ];
+        nixosModules.default = { config, lib, pkgs, ... }: 
+        let 
+          cfg = config.programs.nay;
+        in
+        {
+          options.programs.nay = {
+            enable = lib.mkEnableOption "nay package installer";
+            
+            configPath = lib.mkOption {
+              type = lib.types.str;
+              default = "/etc/nixos/configuration.nix";
+              description = "Path to the NixOS configuration file containing environment.systemPackages";
+            };
+          };
+
+          config = lib.mkIf cfg.enable {
+            environment.systemPackages = [ self.packages.${pkgs.system}.default ];
+            
+            environment.sessionVariables = {
+              NAY_CONFIG_PATH = cfg.configPath;
+            };
+          };
         };
 
         # Overlay

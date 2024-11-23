@@ -87,9 +87,17 @@ def prompt_user_selection(packages: List[Tuple[str, str, str]]) -> Optional[str]
         except ValueError:
             print("Please enter a valid number.")
 
+def get_config_path() -> str:
+    """Get the configuration path from environment variable or use default."""
+    return os.environ.get('NAY_CONFIG_PATH', '/etc/nixos/configuration.nix')
+
 def add_to_configuration(package_name: str) -> bool:
-    """Add package to /etc/nixos/configuration.nix."""
-    config_path = "/etc/nixos/configuration.nix"
+    """Add package to configuration.nix."""
+    config_path = get_config_path()
+    
+    if not os.path.exists(config_path):
+        print(f"Configuration file not found: {config_path}")
+        return False
     
     # Read current configuration
     try:
@@ -107,13 +115,13 @@ def add_to_configuration(package_name: str) -> bool:
             break
     
     if target_line is None:
-        print("Could not find environment.systemPackages in configuration.nix")
+        print(f"Could not find environment.systemPackages in {config_path}")
         return False
     
     # Check if package is already in the configuration
     for line in config_lines[target_line:]:
         if package_name in line:
-            print(f"Package {package_name} is already in configuration.nix")
+            print(f"Package {package_name} is already in {config_path}")
             return False
     
     # Add the package
@@ -135,8 +143,11 @@ def spawn_temp_shell(package_name: str):
 
 def rebuild_system() -> bool:
     """Rebuild the system using nh os switch."""
+    config_path = get_config_path()
+    config_dir = os.path.dirname(config_path)
+    
     print("\nRebuilding system...")
-    process = subprocess.Popen(['nh', 'os', 'switch', '/etc/nixos'], 
+    process = subprocess.Popen(['nh', 'os', 'switch', config_dir], 
                              stdout=subprocess.PIPE, 
                              stderr=subprocess.STDOUT,
                              text=True,
@@ -157,7 +168,6 @@ def main():
     parser = argparse.ArgumentParser(description='Interactive NixOS package installer')
     parser.add_argument('query', nargs='?', help='Package to search for')
     args = parser.parse_args()
-
 
     # Get package query from command line or prompt
     query = args.query if args.query else input("Enter package name to search: ")
