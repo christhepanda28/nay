@@ -171,16 +171,139 @@ def rebuild_system() -> bool:
             print(output.rstrip())
             
     return process.returncode == 0
+def get_installed_packages(config_path: str) -> List[str]:
+    """Extract list of installed packages from configuration.nix."""
+    try:
+        with open(config_path, 'r') as f:
+            content = f.read()
+            
+        # Find the systemPackages section
+        match = re.search(r'environment\.systemPackages\s*=\s*with\s+pkgs;\s*\[(.*?)\]', 
+                         content, re.DOTALL)
+        if not match:
+            return []
+            
+        packages_section = match.group(1)
+        # Extract package names, handling both single-line and multi-line formats
+        packages = []
+        for line in packages_section.split('\n'):
+            line = line.strip()
+            if line and not line.startswith('#'):
+                # Remove any trailing comments
+                line = line.split('#')[0].strip()
+                packages.append(line)
+                
+        return [pkg for pkg in packages if pkg]  # Filter out empty strings
+    except Exception as e:
+        print(f"Error reading configuration file: {e}")
+        return []
+
+def remove_package(package_name: str, config_path: str) -> bool:
+    """Remove a package from configuration.nix."""
+    try:
+        with open(config_path, 'r') as f:
+            lines = f.readlines()
+            
+        # Find the systemPackages section
+        start_idx = None
+        end_idx = None
+        bracket_count = 0
+        
+        for i, line in enumerate(lines):
+            if 'environment.systemPackages = with pkgs; [' in line:
+                start_idx = i
+                bracket_count += 1
+            elif start_idx is not None:
+                bracket_count += line.count('[') - line.count(']')
+                if bracket_count == 0:
+                    end_idx = i
+                    break
+        
+        if start_idx is None or end_idx is None:
+            print("Could not find systemPackages section")
+            return False
+            
+        # Remove the package line
+        package_removed = False
+        i = start_idx + 1
+        while i < end_idx:
+            line = lines[i]
+            if package_name in line and not line.strip().startswith('#'):
+                lines.pop(i)
+                end_idx -= 1
+                package_removed = True
+            else:
+                i += 1
+                
+        if not package_removed:
+            print(f"Package {package_name} not found in configuration")
+            return False
+            
+        # Write back to file
+        with open(config_path, 'w') as f:
+            f.writelines(lines)
+            
+        return True
+        
+    except Exception as e:
+        print(f"Error modifying configuration file: {e}")
+        return False
+
+def select_package_with_fzf(packages: List[str]) -> Optional[str]:
+    """Use fzf to select a package from the list."""
+    if not packages:
+        print("No packages found in configuration")
+        return None
+        
+    try:
+        # Create fzf process
+        fzf = subprocess.Popen(['fzf', '--height=50%', '--layout=reverse'],
+                             stdin=subprocess.PIPE,
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE,
+                             text=True)
+                             
+        # Send packages to fzf
+        packages_str = '\n'.join(packages)
+        stdout, stderr = fzf.communicate(input=packages_str)
+        
+        if fzf.returncode == 130:  # User canceled
+            return None
+            
+        if fzf.returncode == 0:
+            return stdout.strip()
+            
+    except FileNotFoundError:
+        print("Error: fzf is not installed. Please install fzf first.")
+    except Exception as e:
+        print(f"Error running fzf: {e}")
+        
+    return None
 
 def main():
-    # Set up argument parser
-    parser = argparse.ArgumentParser(description='Interactive NixOS package installer')
-    parser.add_argument('query', nargs='?', help='Package to search for')
+    parser = argparse.ArgumentParser(description='Interactive NixOS package installer/remover')
+    parser.add_argument('action', nargs='?', choices=['install', 'remove'], 
+                       help='Action to perform (install or remove)')
+    parser.add_argument('query', nargs='?', help='Package to search for (only for install)')
     args = parser.parse_args()
-
-    # Get package query from command line or prompt
-    query = args.query if args.query else input("Enter package name to search: ")
     
+    if args.action == 'remove':
+        config_path = get_config_path()
+        installed_packages = get_installed_packages(config_path)
+        selected_package = select_package_with_fzf(installed_packages)
+        
+        if selected_package:
+            if remove_package(selected_package, config_path):
+                print(f"Removed {selected_package} from configuration.nix")
+                if rebuild_system():
+                    print("System successfully rebuilt!")
+                else:
+                    print("Failed to rebuild system")
+            else:
+                print("Failed to update configuration.nix")
+        return
+        
+    query = args.query if args.query else input("Enter package name to search: ")
     # Run search
     search_output = run_nh_search(query)
     packages = parse_search_results(search_output)
