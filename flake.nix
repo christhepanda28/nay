@@ -51,8 +51,8 @@
           config = lib.mkIf cfg.enable {
             environment.systemPackages = [ self.packages.${pkgs.system}.default ];
             
-            environment.sessionVariables = {
-              NAY_CONFIG_PATH = cfg.configPath;
+            environment.etc."nay/config".text = builtins.toJSON {
+              inherit (cfg) configPath;
             };
           };
         };

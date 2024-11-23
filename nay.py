@@ -3,6 +3,7 @@ import subprocess
 import re
 import os
 import sys
+import json
 import argparse
 from typing import List, Tuple, Optional
 
@@ -88,8 +89,16 @@ def prompt_user_selection(packages: List[Tuple[str, str, str]]) -> Optional[str]
             print("Please enter a valid number.")
 
 def get_config_path() -> str:
-    """Get the configuration path from environment variable or use default."""
-    return os.environ.get('NAY_CONFIG_PATH', '/etc/nixos/configuration.nix')
+    """Get the configuration path from nay config file or use default."""
+    config_file = "/etc/nay/config"
+    default_path = "/etc/nixos/configuration.nix"
+    
+    try:
+        with open(config_file, 'r') as f:
+            config = json.load(f)
+            return config.get("configPath", default_path)
+    except (FileNotFoundError, json.JSONDecodeError, KeyError):
+        return default_path
 
 def add_to_configuration(package_name: str) -> bool:
     """Add package to configuration.nix."""
